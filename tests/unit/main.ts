@@ -33,14 +33,7 @@ describe('command', () => {
 			}
 		};
 		mockModule = new MockModule('../../src/main', require);
-		mockModule.dependencies([
-			'./webpack.config',
-			'cross-spawn',
-			'cpx',
-			'ora',
-			'rimraf',
-			'webpack'
-		]);
+		mockModule.dependencies(['./webpack.config', 'cross-spawn', 'cpx', 'ora', 'rimraf', 'webpack']);
 		runStub = stub().callsFake((callback: Function) => {
 			callback(error, stats);
 		});
@@ -55,8 +48,7 @@ describe('command', () => {
 			on: stub().callsFake((name: string, callback: Function) => {
 				if (name === 'exit') {
 					const command = commandPath.split(sep).pop();
-					const code = command === 'tsc' ? tscCode:
-						(command === 'tcm' ? tcmCode : 0);
+					const code = command === 'tsc' ? tscCode : command === 'tcm' ? tcmCode : 0;
 					callback(code);
 				}
 			})
@@ -90,7 +82,8 @@ describe('command', () => {
 		);
 		assert.isTrue(
 			optionsStub.calledWith('release', {
-				describe: 'The version to use when generating custom element-compatible builds. Defaults to the package.json version.',
+				describe:
+					'The version to use when generating custom element-compatible builds. Defaults to the package.json version.',
 				alias: 'r'
 			})
 		);
@@ -99,11 +92,9 @@ describe('command', () => {
 	it('rejects if an error occurs', () => {
 		error = new Error('failed!');
 		const main = mockModule.getModuleUnderTest().default;
-		return main.run(getMockConfiguration(), { name: 'my-theme' }).then(
-			() => {
-				assert.isTrue(mockSpinner.fail.calledWith(error));
-			}
-		);
+		return main.run(getMockConfiguration(), { name: 'my-theme' }).then(() => {
+			assert.isTrue(mockSpinner.fail.calledWith(error));
+		});
 	});
 
 	it('shows a building spinner on start', () => {
@@ -135,12 +126,10 @@ describe('command', () => {
 	it('should fail when .m.css.d.ts files cannot be generated', () => {
 		tcmCode = 1;
 		const main = mockModule.getModuleUnderTest().default;
-		return main.run(getMockConfiguration(), { name: 'my-theme' }).then(
-			() => {
-				const { message } = mockSpinner.fail.args[0][0];
-				assert.strictEqual(message, 'Failed to build CSS modules');
-			}
-		);
+		return main.run(getMockConfiguration(), { name: 'my-theme' }).then(() => {
+			const { message } = mockSpinner.fail.args[0][0];
+			assert.strictEqual(message, 'Failed to build CSS modules');
+		});
 	});
 
 	it('should generate the index.d.ts file', () => {
@@ -156,12 +145,10 @@ describe('command', () => {
 	it('should fail when the index.d.ts file cannot be generated', () => {
 		tscCode = 1;
 		const main = mockModule.getModuleUnderTest().default;
-		return main.run(getMockConfiguration(), { name: 'my-theme' }).then(
-			() => {
-				const { message } = mockSpinner.fail.args[0][0];
-				assert.strictEqual(message, 'Failed to build my-theme/index.d.ts')
-			}
-		);
+		return main.run(getMockConfiguration(), { name: 'my-theme' }).then(() => {
+			const { message } = mockSpinner.fail.args[0][0];
+			assert.strictEqual(message, 'Failed to build my-theme/index.d.ts');
+		});
 	});
 
 	it('should copy d.ts and css files', () => {
@@ -172,4 +159,3 @@ describe('command', () => {
 		});
 	});
 });
-

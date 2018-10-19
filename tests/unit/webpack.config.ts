@@ -29,7 +29,10 @@ describe('webpack.config', () => {
 		const config = factory({ name: 'my-theme' });
 		const themePath = join(process.cwd(), 'src/my-theme');
 		assert.deepEqual(config.entry, {
-			'my-theme-custom-element': `imports-loader?theme=${join(themePath, 'index.ts')}!${join('./template', 'theme-installer.js')}`,
+			'my-theme-custom-element': `imports-loader?theme=${join(themePath, 'index.ts')}!${join(
+				'./template',
+				'theme-installer.js'
+			)}`,
 			'my-theme': join(themePath, 'index.ts')
 		});
 	});
@@ -65,7 +68,7 @@ describe('webpack.config', () => {
 		factory({ name: 'my-theme' });
 
 		const resolveCss = ExtractTextPlugin.args[0][0].filename;
-		resolveCss(getPath)
+		resolveCss(getPath);
 		assert.isTrue(getPath.calledWith('[custom].css'));
 	});
 
@@ -82,9 +85,11 @@ describe('webpack.config', () => {
 		const mainTemplatePlugin = stub();
 		const mockPlugin = stub().callsFake((name: string, callback: Function) => {
 			if (name === 'asset-path') {
-				mainTemplatePlugin(callback('[custom].js', {
-					chunk: { name: 'my-theme' }
-				}));
+				mainTemplatePlugin(
+					callback('[custom].js', {
+						chunk: { name: 'my-theme' }
+					})
+				);
 			} else if (name === 'compilation') {
 				callback({
 					mainTemplate: { plugin: mockPlugin }
@@ -102,9 +107,11 @@ describe('webpack.config', () => {
 		const mainTemplatePlugin = stub();
 		const mockPlugin = stub().callsFake((name: string, callback: Function) => {
 			if (name === 'asset-path') {
-				mainTemplatePlugin(callback('[custom].js', {
-					chunk: { name: 'my-theme-custom-element' }
-				}));
+				mainTemplatePlugin(
+					callback('[custom].js', {
+						chunk: { name: 'my-theme-custom-element' }
+					})
+				);
 			} else if (name === 'compilation') {
 				callback({
 					mainTemplate: { plugin: mockPlugin }
@@ -115,4 +122,3 @@ describe('webpack.config', () => {
 		assert.isTrue(mainTemplatePlugin.calledWith('my-theme-1.1.1.js'));
 	});
 });
-

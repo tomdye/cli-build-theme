@@ -66,7 +66,10 @@ export default function webpackConfigFactory(args: BuildArgs): Configuration {
 
 	return {
 		entry: {
-			[`${themeName}-custom-element`]: `imports-loader?theme=${path.join(themePath, 'index.ts')}!${path.join('./template', 'theme-installer.js')}`,
+			[`${themeName}-custom-element`]: `imports-loader?theme=${path.join(themePath, 'index.ts')}!${path.join(
+				'./template',
+				'theme-installer.js'
+			)}`,
 			[themeName]: path.join(themePath, 'index.ts')
 		},
 		output: {
@@ -91,16 +94,19 @@ export default function webpackConfigFactory(args: BuildArgs): Configuration {
 				filename: (getPath: (template: string) => string) => getPath('[custom].css')
 			}),
 			new TemplatedPathPlugin(),
-			function (this: Compiler) {
+			function(this: Compiler) {
 				const compiler = this;
 				const elementName = `${themeName}-${themeVersion}`;
 				const distName = 'index';
 				compiler.plugin('compilation', (compilation) => {
 					compilation.mainTemplate.plugin('asset-path', (template: string, chunkData?: { chunk: Chunk }) => {
 						const chunkName = chunkData && chunkData.chunk && chunkData.chunk.name;
-						return template.indexOf('[custom]') > -1 ?
-							template.replace(/\[custom\]/, chunkName === `${themeName}-custom-element` ? elementName : distName) :
-							template;
+						return template.indexOf('[custom]') > -1
+							? template.replace(
+									/\[custom\]/,
+									chunkName === `${themeName}-custom-element` ? elementName : distName
+							  )
+							: template;
 					});
 				});
 			}
@@ -156,4 +162,3 @@ export default function webpackConfigFactory(args: BuildArgs): Configuration {
 		}
 	};
 }
-

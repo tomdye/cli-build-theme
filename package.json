@@ -10,9 +10,14 @@
     "dojo-package": "dojo-package",
     "dojo-release": "dojo-release",
     "intern": "intern",
-    "lint": "tslint -p .",
+    "lint:ts": "tslint -p .",
+    "lint:prettier": "prettier -l \"{src,tests}/**/*.{ts,tsx}\"",
+    "lint": "run-p lint:*",
+    "precommit": "lint-staged",
+    "prettier": "prettier --write \"{src,tests}/**/*.{ts,tsx}\"",
     "release": "run-s lint clean build \"dojo-release -- {@}\" --",
-    "test": "run-s clean build intern"
+    "test": "run-s clean build intern",
+    "uploadCoverage": "codecov --file=coverage/coverage.json"
   },
   "repository": {
     "type": "git",
@@ -35,6 +40,9 @@
     "@types/sinon": "5.0.1",
     "@types/tapable": "0.2.4",
     "@types/webpack": "3.8.1",
+    "codecov": "3.1.0",
+    "husky": "0.14.3",
+    "lint-staged": "7.2.2",
     "mockery": "2.1.0",
     "sinon": "6.1.5"
   },
@@ -60,5 +68,19 @@
     "typescript": "3.0.1",
     "uglifyjs-webpack-plugin": "1.1.0",
     "webpack": "3.8.1"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "prettier --write",
+      "git add"
+    ]
+  },
+  "prettier": {
+    "singleQuote": true,
+    "tabWidth": 4,
+    "useTabs": true,
+    "parser": "typescript",
+    "printWidth": 120,
+    "arrowParens": "always"
   }
 }
