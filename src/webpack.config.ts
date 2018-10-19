@@ -123,7 +123,7 @@ export default function webpackConfigFactory(args: BuildArgs): Configuration {
 					loader: 'file-loader?hash=sha512&digest=hex&name=[hash:base64:8].[ext]',
 					options: {
 						outputPath: 'assets/',
-						publicPath: '/assets/'
+						useRelativePath: true
 					}
 				},
 				{
