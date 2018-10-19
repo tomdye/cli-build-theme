@@ -35,7 +35,7 @@ describe('command', () => {
 		mockModule = new MockModule('../../src/main', require);
 		mockModule.dependencies([
 			'./webpack.config',
-			'child_process',
+			'cross-spawn',
 			'cpx',
 			'ora',
 			'rimraf',
@@ -51,7 +51,7 @@ describe('command', () => {
 		};
 		tcmCode = 0;
 		tscCode = 0;
-		mockModule.getMock('child_process').spawn.callsFake((commandPath: string) => ({
+		mockModule.getMock('cross-spawn').ctor.callsFake((commandPath: string) => ({
 			on: stub().callsFake((name: string, callback: Function) => {
 				if (name === 'exit') {
 					const command = commandPath.split(sep).pop();
@@ -127,8 +127,8 @@ describe('command', () => {
 		return main.run(getMockConfiguration(), { name: 'my-theme' }).then(() => {
 			const basePath = process.cwd();
 			const command = join(basePath, 'node_modules/.bin/tcm');
-			const { spawn } = mockModule.getMock('child_process');
-			assert.isTrue(spawn.calledWith(command, ['src/my-theme', '*.m.css'], { cwd: basePath }));
+			const spawn = mockModule.getMock('cross-spawn').ctor;
+			assert.isTrue(spawn.calledWith(command, ['src/my-theme/*.m.css'], { cwd: basePath }));
 		});
 	});
 
@@ -148,7 +148,7 @@ describe('command', () => {
 		return main.run(getMockConfiguration(), { name: 'my-theme' }).then(() => {
 			const basePath = process.cwd();
 			const command = join(basePath, 'node_modules/.bin/tsc');
-			const { spawn } = mockModule.getMock('child_process');
+			const spawn = mockModule.getMock('cross-spawn').ctor;
 			assert.isTrue(spawn.calledWith(command, ['--outDir', 'dist/src/my-theme'], { cwd: basePath }));
 		});
 	});
