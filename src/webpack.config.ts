@@ -5,9 +5,56 @@ import { Chunk, Compiler, Configuration, DefinePlugin } from 'webpack';
 
 import { BuildArgs } from './interfaces';
 
+const postcssPresetEnv = require('postcss-preset-env');
+const postcssImport = require('postcss-import');
 const ExtractTextPlugin = require('extract-text-webpack-plugin');
 const UglifyJsPlugin = require('uglifyjs-webpack-plugin');
 const TemplatedPathPlugin = require('webpack/lib/TemplatedPathPlugin');
+
+interface CssStyle {
+	walkDecls(processor: (decl: { value: string }) => void): void;
+}
+
+function colorToColorMod(style: CssStyle) {
+	style.walkDecls((decl) => {
+		decl.value = decl.value.replace('color(', 'color-mod(');
+	});
+}
+
+const postcssImportConfig = {
+	filter: (path: string) => {
+		return /.*variables(\.m)?\.css$/.test(path);
+	},
+	load: (filename: string, importOptions: any = {}) => {
+		return fs.readFileSync(filename, 'utf8').replace('color(', 'color-mod(');
+	},
+	resolve: (id: string, basedir: string, importOptions: any = {}) => {
+		if (importOptions.filter) {
+			const result = importOptions.filter(id);
+			if (!result) {
+				return id;
+			}
+		}
+		if (id[0] === '~') {
+			return id.substr(1);
+		}
+		return id;
+	}
+};
+
+const postcssPresetConfig = {
+	browsers: ['last 2 versions', 'ie >= 10'],
+	insertBefore: {
+		'color-mod-function': colorToColorMod
+	},
+	features: {
+		'color-mod-function': true,
+		'nesting-rules': true
+	},
+	autoprefixer: {
+		grid: true
+	}
+};
 
 export default function webpackConfigFactory(args: BuildArgs): Configuration {
 	const basePath = process.cwd();
@@ -99,16 +146,7 @@ export default function webpackConfigFactory(args: BuildArgs): Configuration {
 								loader: 'postcss-loader?sourceMap',
 								options: {
 									ident: 'postcss',
-									plugins: [
-										require('postcss-import')(),
-										require('postcss-cssnext')({
-											features: {
-												autoprefixer: {
-													browsers: ['last 2 versions', 'ie >= 10']
-												}
-											}
-										})
-									]
+									plugins: [postcssImport(postcssImportConfig), postcssPresetEnv(postcssPresetConfig)]
 								}
 							}
 						]

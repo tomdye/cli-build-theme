@@ -1,5 +1,5 @@
 import { Command, Helper, OptionsHelper } from '@dojo/cli/interfaces';
-import { spawn } from 'child_process';
+import * as spawn from 'cross-spawn';
 import { copy } from 'cpx';
 import * as ora from 'ora';
 import { join } from 'path';
@@ -35,16 +35,16 @@ const command: Command = {
 			});
 		});
 		const createChildProcess = (command: string, args: string[], errorMessage: string) => new Promise((resolve, reject) => {
-			const child = spawn(join(basePath, 'node_modules/.bin', command), args, { cwd: basePath });
+			const child = spawn(join(basePath, 'node_modules', '.bin', command), args, { cwd: basePath });
 			child.on('error', reject);
 			child.on('exit', (code) => code !== 0 ? reject(new Error(errorMessage)) : resolve());
 		});
 
 		const spinner = ora(`building ${name} theme`).start();
-		return createTask((callback: any) => rimraf(`dist/src/${name}`, callback))
-			.then(() => createChildProcess('tcm', [`src/${name}`, '*.m.css'], 'Failed to build CSS modules'))
-			.then(() => createChildProcess('tsc', ['--outDir', `dist/src/${name}`], `Failed to build ${name}/index.d.ts`))
-			.then(() => createTask((callback: any) => copy(`src/${name}/*.{d.ts,css}`, `dist/src/${name}`, callback)))
+		return createTask((callback: any) => rimraf(join('dist', 'src', name), callback))
+			.then(() => createChildProcess('tcm', [join('src', name, '*.m.css')], 'Failed to build CSS modules'))
+			.then(() => createChildProcess('tsc', ['--outDir', join('dist', 'src', name)], `Failed to build ${name}/index.d.ts`))
+			.then(() => createTask((callback: any) => copy(join('src', name, '*.{d.ts,css}'), join('dist', 'src', name), callback)))
 			.then(() => createTask((callback: any) => {
 				const compiler = webpack(getConfig(args));
 				compiler.run(callback);
