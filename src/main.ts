@@ -55,6 +55,11 @@ const command: Command = {
 				)
 			)
 			.then(() =>
+				createTask((callback: any) =>
+					copy(join('src', name, 'assets', '*'), join('dist', 'src', name, 'assets'), callback)
+				)
+			)
+			.then(() =>
 				createTask((callback: any) => {
 					const compiler = webpack(getConfig(args));
 					compiler.run(callback);
