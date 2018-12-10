@@ -1,8 +1,10 @@
 import { Command, Helper, OptionsHelper } from '@dojo/cli/interfaces';
 import * as spawn from 'cross-spawn';
 import { copy } from 'cpx';
+import * as fs from 'fs';
 import * as ora from 'ora';
-import { join } from 'path';
+import * as os from 'os';
+import { join, relative, sep } from 'path';
 import * as rimraf from 'rimraf';
 import * as webpack from 'webpack';
 import { BuildArgs } from './interfaces';
@@ -43,11 +45,35 @@ const command: Command = {
 				child.on('exit', (code) => (code !== 0 ? reject(new Error(errorMessage)) : resolve()));
 			});
 
+		let tmpDir: string;
+		const rmTmpDir = () => tmpDir && (fs.unlinkSync(join(tmpDir, 'tsconfig.json')), fs.rmdirSync(tmpDir));
 		const spinner = ora(`building ${name} theme`).start();
 		return createTask((callback: any) => rimraf(join('dist', 'src', name), callback))
 			.then(() => createChildProcess('tcm', [join('src', name, '*.m.css')], 'Failed to build CSS modules'))
 			.then(() =>
-				createChildProcess('tsc', ['--outDir', join('dist', 'src', name)], `Failed to build ${name}/index.d.ts`)
+				createTask((callback: any) =>
+					fs.mkdtemp(os.tmpdir() + sep, (error: Error | undefined, folder: string) => {
+						if (error) {
+							callback(error);
+						} else {
+							tmpDir = folder;
+							const tsconfig = join(relative(tmpDir, ''), 'tsconfig.json');
+							const include = join(relative(tmpDir, ''), 'src', name, '**', '*.ts');
+							fs.writeFile(
+								join(tmpDir, 'tsconfig.json'),
+								`{ "extends": "${tsconfig}", "include": [ "${include}" ] }`,
+								callback
+							);
+						}
+					})
+				)
+			)
+			.then(() =>
+				createChildProcess(
+					'tsc',
+					['--outDir', join('dist', 'src', name), '--project', join(relative('', tmpDir), 'tsconfig.json')],
+					`Failed to build ${name}/index.d.ts`
+				)
 			)
 			.then(() =>
 				createTask((callback: any) =>
@@ -68,9 +94,11 @@ const command: Command = {
 			.then(
 				() => {
 					spinner.succeed('build successful');
+					rmTmpDir();
 				},
 				(error) => {
 					spinner.fail(error);
+					rmTmpDir();
 				}
 			);
 	}
