@@ -7,7 +7,7 @@ import { BuildArgs } from './interfaces';
 
 const postcssPresetEnv = require('postcss-preset-env');
 const postcssImport = require('postcss-import');
-const ExtractTextPlugin = require('extract-text-webpack-plugin');
+import * as MiniCssExtractPlugin from 'mini-css-extract-plugin';
 const UglifyJsPlugin = require('uglifyjs-webpack-plugin');
 const TemplatedPathPlugin = require('webpack/lib/TemplatedPathPlugin');
 
@@ -90,9 +90,12 @@ export default function webpackConfigFactory(args: BuildArgs): Configuration {
 			new CssModulePlugin(basePath),
 			new DefinePlugin({ THEME_NAME: JSON.stringify(themeName) }),
 			new UglifyJsPlugin({ sourceMap: true, cache: true }),
-			new ExtractTextPlugin({
-				filename: (getPath: (template: string) => string) => getPath('[custom].css')
+			new MiniCssExtractPlugin({
+				filename: '[name].css'
 			}),
+			// new ExtractTextPlugin({
+			// 	filename: (getPath: (template: string) => string) => getPath('[custom].css')
+			// }),
 			new TemplatedPathPlugin(),
 			function(this: Compiler) {
 				const compiler = this;
@@ -135,28 +138,26 @@ export default function webpackConfigFactory(args: BuildArgs): Configuration {
 				{
 					include: themePath,
 					test: /.*\.css?$/,
-					use: ExtractTextPlugin.extract({
-						fallback: ['style-loader'],
-						use: [
-							'@dojo/webpack-contrib/css-module-decorator-loader',
-							{
-								loader: 'css-loader',
-								options: {
-									modules: true,
-									sourceMap: true,
-									importLoaders: 1,
-									localIdentName: '[name]__[local]__[hash:base64:5]'
-								}
-							},
-							{
-								loader: 'postcss-loader?sourceMap',
-								options: {
-									ident: 'postcss',
-									plugins: [postcssImport(postcssImportConfig), postcssPresetEnv(postcssPresetConfig)]
-								}
+					use: [
+						MiniCssExtractPlugin.loader,
+						'@dojo/webpack-contrib/css-module-decorator-loader',
+						{
+							loader: 'css-loader',
+							options: {
+								modules: true,
+								sourceMap: true,
+								importLoaders: 1,
+								localIdentName: '[name]__[local]__[hash:base64:5]'
 							}
-						]
-					})
+						},
+						{
+							loader: 'postcss-loader?sourceMap',
+							options: {
+								ident: 'postcss',
+								plugins: [postcssImport(postcssImportConfig), postcssPresetEnv(postcssPresetConfig)]
+							}
+						}
+					]
 				}
 			]
 		}
