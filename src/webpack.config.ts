@@ -1,15 +1,16 @@
 import CssModulePlugin from '@dojo/webpack-contrib/css-module-plugin/CssModulePlugin';
 import * as fs from 'fs';
 import * as path from 'path';
-import { Chunk, Compiler, Configuration, DefinePlugin } from 'webpack';
+import { Compiler, Configuration, DefinePlugin } from 'webpack';
 
 import { BuildArgs } from './interfaces';
 
 const postcssPresetEnv = require('postcss-preset-env');
 const postcssImport = require('postcss-import');
 import * as MiniCssExtractPlugin from 'mini-css-extract-plugin';
-const UglifyJsPlugin = require('uglifyjs-webpack-plugin');
 const TemplatedPathPlugin = require('webpack/lib/TemplatedPathPlugin');
+// const OptimizeCssAssetsPlugin = require('optimize-css-assets-webpack-plugin');
+const TerserPlugin = require('terser-webpack-plugin');
 
 interface CssStyle {
 	walkDecls(processor: (decl: { value: string }) => void): void;
@@ -64,7 +65,12 @@ export default function webpackConfigFactory(args: BuildArgs): Configuration {
 	const themeVersion = args.release || packageJson.version;
 	const themePath = path.join(basePath, 'src', themeName);
 
+	function recursiveIssuer(m: any): string | boolean {
+		return m.issuer ? recursiveIssuer(m.issuer) : m.name ? m.name : false;
+	}
+
 	return {
+		mode: 'production',
 		entry: {
 			[`${themeName}-custom-element`]: `imports-loader?theme=${path.join(themePath, 'index.ts')}!${path.join(
 				'./template',
@@ -89,39 +95,49 @@ export default function webpackConfigFactory(args: BuildArgs): Configuration {
 		optimization: {
 			splitChunks: {
 				cacheGroups: {
-					styles: {
-						name: 'styles',
-						test: /.*\.css?$/,
+					index: {
+						name: 'index',
+						test: (m, c, entry) => m.constructor.name === 'CssModule' && recursiveIssuer(m) === entry,
 						chunks: 'all',
 						enforce: true
 					}
 				}
-			}
+			},
+			minimizer: [
+				new TerserPlugin({ sourceMap: true, cache: true })
+				// ,
+				// new OptimizeCssAssetsPlugin({
+				// 	cssProcessor: require('cssnano'),
+				// 	cssProcessorPluginOptions: {
+				// 		preset: ['default', { calc: false }]
+				// 	}
+				// })
+			]
 		},
 		plugins: [
 			new CssModulePlugin(basePath),
 			new DefinePlugin({ THEME_NAME: JSON.stringify(themeName) }),
-			new UglifyJsPlugin({ sourceMap: true, cache: true }),
 			new MiniCssExtractPlugin({
-				filename: '[custom].css'
+				filename: `[name].css`
 			}),
 			new TemplatedPathPlugin(),
 			function(this: Compiler) {
 				const compiler = this;
 				const elementName = `${themeName}-${themeVersion}`;
 				const distName = 'index';
-				compiler.plugin('compilation', (compilation) => {
-					console.log('here');
-					compilation.mainTemplate.plugin('asset-path', (template: string, chunkData?: { chunk: Chunk }) => {
-						const chunkName = chunkData && chunkData.chunk && chunkData.chunk.name;
-						console.log('here too: ', chunkName);
-						return template.indexOf('[custom]') > -1
-							? template.replace(
-									/\[custom\]/,
-									chunkName === `${themeName}-custom-element` ? elementName : distName
-							  )
-							: template;
-					});
+				compiler.hooks.compilation.tap('@dojo/cli-build-theme', (compilation) => {
+					compilation.mainTemplate.plugin(
+						'asset-path',
+						(template: string, chunkData?: { chunk: { name?: string } }) => {
+							const chunkName = chunkData && chunkData.chunk && chunkData.chunk.name;
+							return template.indexOf('[custom]') > -1
+								? template.replace(
+										/\[custom\]/,
+										chunkName === `${themeName}-custom-element` ? elementName : distName
+								  )
+								: template;
+						}
+					);
 				});
 			}
 		],
