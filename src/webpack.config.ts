@@ -86,24 +86,35 @@ export default function webpackConfigFactory(args: BuildArgs): Configuration {
 			}
 		},
 		devtool: 'source-map',
+		optimization: {
+			splitChunks: {
+				cacheGroups: {
+					styles: {
+						name: 'styles',
+						test: /.*\.css?$/,
+						chunks: 'all',
+						enforce: true
+					}
+				}
+			}
+		},
 		plugins: [
 			new CssModulePlugin(basePath),
 			new DefinePlugin({ THEME_NAME: JSON.stringify(themeName) }),
 			new UglifyJsPlugin({ sourceMap: true, cache: true }),
 			new MiniCssExtractPlugin({
-				filename: '[name].css'
+				filename: '[custom].css'
 			}),
-			// new ExtractTextPlugin({
-			// 	filename: (getPath: (template: string) => string) => getPath('[custom].css')
-			// }),
 			new TemplatedPathPlugin(),
 			function(this: Compiler) {
 				const compiler = this;
 				const elementName = `${themeName}-${themeVersion}`;
 				const distName = 'index';
 				compiler.plugin('compilation', (compilation) => {
+					console.log('here');
 					compilation.mainTemplate.plugin('asset-path', (template: string, chunkData?: { chunk: Chunk }) => {
 						const chunkName = chunkData && chunkData.chunk && chunkData.chunk.name;
+						console.log('here too: ', chunkName);
 						return template.indexOf('[custom]') > -1
 							? template.replace(
 									/\[custom\]/,
