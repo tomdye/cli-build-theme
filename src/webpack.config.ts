@@ -65,9 +65,9 @@ export default function webpackConfigFactory(args: BuildArgs): Configuration {
 	const themeVersion = args.release || packageJson.version;
 	const themePath = path.join(basePath, 'src', themeName);
 
-	function recursiveIssuer(m: any): string | boolean {
-		return m.issuer ? recursiveIssuer(m.issuer) : m.name ? m.name : false;
-	}
+	// function recursiveIssuer(m: any): string | boolean {
+	// 	return m.issuer ? recursiveIssuer(m.issuer) : m.name ? m.name : false;
+	// }
 
 	return {
 		mode: 'production',
@@ -95,9 +95,9 @@ export default function webpackConfigFactory(args: BuildArgs): Configuration {
 		optimization: {
 			splitChunks: {
 				cacheGroups: {
-					index: {
-						name: 'index',
-						test: (m, c, entry) => m.constructor.name === 'CssModule' && recursiveIssuer(m) === entry,
+					styles: {
+						name: 'styles',
+						test: /.*\.css?$/,
 						chunks: 'all',
 						enforce: true
 					}
