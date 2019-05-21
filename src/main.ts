@@ -49,7 +49,9 @@ const command: Command = {
 		const rmTmpDir = () => tmpDir && (fs.unlinkSync(join(tmpDir, 'tsconfig.json')), fs.rmdirSync(tmpDir));
 		const spinner = ora(`building ${name} theme`).start();
 		return createTask((callback: any) => rimraf(join('dist', 'src', name), callback))
-			.then(() => createChildProcess('tcm', [join('src', name, '*.m.css')], 'Failed to build CSS modules'))
+			.then(() =>
+				createChildProcess('tcm', ['-p=' + join('src', name, '*.m.css')], 'Failed to build CSS modules')
+			)
 			.then(() =>
 				createTask((callback: any) =>
 					fs.mkdtemp(os.tmpdir() + sep, (error: Error | undefined, folder: string) => {
