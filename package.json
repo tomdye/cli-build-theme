@@ -1,6 +1,6 @@
 {
   "name": "@dojo/cli-build-theme",
-  "version": "5.0.1-pre",
+  "version": "6.0.0-rc.1",
   "description": "CLI command to build Dojo themes",
   "main": "main.js",
   "scripts": {
