@@ -133,7 +133,9 @@ describe('command', () => {
 			const basePath = process.cwd();
 			const command = join(basePath, 'node_modules/.bin/tcm');
 			const spawn = mockModule.getMock('cross-spawn').ctor;
-			assert.isTrue(spawn.calledWith(command, ['-p=' + join('src', 'my-theme', '*.m.css')], { cwd: basePath }));
+			assert.isTrue(
+				spawn.calledWith(command, ['-p=' + join('src', 'my-theme', '**', '*.m.css')], { cwd: basePath })
+			);
 		});
 	});
 

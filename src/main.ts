@@ -50,7 +50,7 @@ const command: Command = {
 		const spinner = ora(`building ${name} theme`).start();
 		return createTask((callback: any) => rimraf(join('dist', 'src', name), callback))
 			.then(() =>
-				createChildProcess('tcm', ['-p=' + join('src', name, '*.m.css')], 'Failed to build CSS modules')
+				createChildProcess('tcm', ['-p=' + join('src', name, '**', '*.m.css')], 'Failed to build CSS modules')
 			)
 			.then(() =>
 				createTask((callback: any) =>
