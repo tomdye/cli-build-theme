@@ -1,164 +1,200 @@
-import CssModulePlugin from '@dojo/webpack-contrib/css-module-plugin/CssModulePlugin';
-import * as fs from 'fs';
+import { Configuration } from 'webpack';
+import * as MiniCssExtractPlugin from 'mini-css-extract-plugin';
 import * as path from 'path';
-import { Chunk, Compiler, Configuration, DefinePlugin } from 'webpack';
-
-import { BuildArgs } from './interfaces';
+import * as fs from 'fs';
+import { emitAllFactory } from '@dojo/webpack-contrib/emit-all-plugin/EmitAllPlugin';
+import * as OptimizeCssAssetsPlugin from 'optimize-css-assets-webpack-plugin';
+import { CleanWebpackPlugin } from 'clean-webpack-plugin';
+import * as cssnano from 'cssnano';
+import { classesMap } from '@dojo/webpack-contrib/css-module-class-map-loader/loader';
 
 const postcssPresetEnv = require('postcss-preset-env');
-const postcssImport = require('postcss-import');
-const ExtractTextPlugin = require('extract-text-webpack-plugin');
-const UglifyJsPlugin = require('uglifyjs-webpack-plugin');
-const TemplatedPathPlugin = require('webpack/lib/TemplatedPathPlugin');
+const postcssModules = require('postcss-modules');
+const removeEmpty = (items: any[]) => items.filter((item) => item);
 
-interface CssStyle {
-	walkDecls(processor: (decl: { value: string }) => void): void;
-}
+const basePath = process.cwd();
+const packageJsonPath = path.join(basePath, 'package.json');
+const packageJson = fs.existsSync(packageJsonPath) ? require(packageJsonPath) : {};
 
-function colorToColorMod(style: CssStyle) {
-	style.walkDecls((decl) => {
-		decl.value = decl.value.replace('color(', 'color-mod(');
-	});
-}
-
-const postcssImportConfig = {
-	filter: (path: string) => {
-		return /.*variables(\.m)?\.css$/.test(path);
-	},
-	load: (filename: string, importOptions: any = {}) => {
-		return fs.readFileSync(filename, 'utf8').replace('color(', 'color-mod(');
-	},
-	resolve: (id: string, basedir: string, importOptions: any = {}) => {
-		if (importOptions.filter) {
-			const result = importOptions.filter(id);
-			if (!result) {
-				return id;
-			}
-		}
-		if (id[0] === '~') {
-			return id.substr(1);
-		}
-		return id;
-	}
-};
-
-const postcssPresetConfig = {
-	browsers: ['last 2 versions', 'ie >= 10'],
-	insertBefore: {
-		'color-mod-function': colorToColorMod
-	},
-	features: {
-		'color-mod-function': true,
-		'nesting-rules': true
-	},
-	autoprefixer: {
-		grid: true
-	}
-};
-
-export default function webpackConfigFactory(args: BuildArgs): Configuration {
-	const basePath = process.cwd();
-	const packageJsonPath = path.join(basePath, 'package.json');
-	const packageJson = fs.existsSync(packageJsonPath) ? require(packageJsonPath) : {};
-	const themeName = args.name;
+export default function webpackConfigFactory(args: any): Configuration {
 	const themeVersion = args.release || packageJson.version;
-	const themePath = path.join(basePath, 'src', themeName);
+	const themesPath = args.themePath ? path.join(basePath, args.themePath) : path.join(basePath, 'src', 'theme');
+	const outputPath = path.join(basePath, 'output', 'theme');
+	const themes: string[] = args.themes;
 
-	return {
-		entry: {
-			[`${themeName}-custom-element`]: `imports-loader?theme=${path.join(themePath, 'index.ts')}!${path.join(
-				'./template',
-				'theme-installer.js'
-			)}`,
-			[themeName]: path.join(themePath, 'index.ts')
+	const postcssPresetConfig = {
+		browsers: ['last 2 versions', 'ie >= 10'],
+		features: {
+			'nesting-rules': true
 		},
+		autoprefixer: {
+			grid: true
+		},
+		importFrom: themes.map((theme) => {
+			return path.join(themesPath, theme, 'variables.css');
+		})
+	};
+
+	const emitAll = emitAllFactory({
+		legacy: false,
+		inlineSourceMaps: false,
+		basePath: themesPath
+	});
+
+	const tsLoaderOptions = {
+		instance: 'dojo',
+		onlyCompileBundledFiles: true,
+		compilerOptions: {
+			declaration: true,
+			rootDir: path.resolve('./src'),
+			outDir: path.resolve(`./output/`)
+		},
+		getCustomTransformers() {
+			return {
+				before: [emitAll.transformer]
+			};
+		}
+	};
+
+	const config: Configuration = {
+		mode: 'production',
+		entry: themes.reduce(
+			(entry, theme) => {
+				entry[theme] = [
+					`imports-loader?THEME_NAME=>'${theme}',theme=${path.join(
+						themesPath,
+						theme,
+						'index.ts'
+					)}!${path.join(__dirname, 'template', 'theme-installer.js')}`
+				];
+				return entry;
+			},
+			{} as { [index: string]: any }
+		),
 		output: {
-			filename: '[custom].js',
-			path: path.join(basePath, `dist/src/${themeName}`),
+			filename: `[name]/[name]-${themeVersion}.js`,
+			path: outputPath,
 			library: '[name]',
 			libraryTarget: 'umd'
 		},
+		resolveLoader: {
+			modules: [path.resolve(__dirname, 'node_modules'), 'node_modules']
+		},
 		resolve: {
 			modules: [basePath, path.join(basePath, 'node_modules')],
-			extensions: ['.ts', '.js'],
-			alias: {
-				assets: path.resolve(basePath, 'assets')
-			}
+			extensions: ['.ts', '.tsx', '.mjs', '.js']
 		},
 		devtool: 'source-map',
 		plugins: [
-			new CssModulePlugin(basePath),
-			new DefinePlugin({ THEME_NAME: JSON.stringify(themeName) }),
-			new UglifyJsPlugin({ sourceMap: true, cache: true }),
-			new ExtractTextPlugin({
-				filename: (getPath: (template: string) => string) => getPath('[custom].css')
+			new MiniCssExtractPlugin({
+				filename: `[name]/[name]-${themeVersion}.css`
 			}),
-			new TemplatedPathPlugin(),
-			function(this: Compiler) {
-				const compiler = this;
-				const elementName = `${themeName}-${themeVersion}`;
-				const distName = 'index';
-				compiler.plugin('compilation', (compilation) => {
-					compilation.mainTemplate.plugin('asset-path', (template: string, chunkData?: { chunk: Chunk }) => {
-						const chunkName = chunkData && chunkData.chunk && chunkData.chunk.name;
-						return template.indexOf('[custom]') > -1
-							? template.replace(
-									/\[custom\]/,
-									chunkName === `${themeName}-custom-element` ? elementName : distName
-							  )
-							: template;
-					});
-				});
-			}
+			emitAll.plugin,
+			new OptimizeCssAssetsPlugin({
+				cssProcessor: cssnano as any,
+				cssProcessorOptions: {
+					map: {
+						inline: false
+					}
+				},
+				cssProcessorPluginOptions: {
+					preset: ['default', { calc: false }]
+				}
+			}),
+			new CleanWebpackPlugin()
 		],
 		module: {
-			rules: [
+			rules: removeEmpty([
 				{
-					include: themePath,
+					include: themesPath,
 					test: /.*\.ts?$/,
-					use: [
-						{
-							loader: 'ts-loader',
-							options: { instance: 'dojo', compilerOptions: { declaration: false } }
-						}
-					]
+					enforce: 'pre',
+					loader: `@dojo/webpack-contrib/css-module-dts-loader?type=ts&instanceName=0_dojo`
 				},
 				{
-					include: themePath,
+					include: themesPath,
+					test: /.*\.m\.css?$/,
+					enforce: 'pre',
+					loader: '@dojo/webpack-contrib/css-module-dts-loader?type=css'
+				},
+				{
+					include: themesPath,
+					test: /.*\.ts(x)?$/,
+					use: removeEmpty([
+						{
+							loader: 'ts-loader',
+							options: tsLoaderOptions
+						}
+					])
+				},
+				{
+					include: themesPath,
 					test: /.*\.(gif|png|jpe?g|svg|eot|ttf|woff|woff2)$/i,
-					loader: 'file-loader?hash=sha512&digest=hex&name=[hash:base64:8].[ext]',
+					loader: 'file-loader',
 					options: {
-						outputPath: 'assets/',
-						useRelativePath: true
+						name: (file: string) => {
+							const fileDir = path
+								.dirname(file.replace(path.join(basePath, 'src', 'theme'), ''))
+								.replace(/^(\/|\\)/, '');
+							return `${fileDir}/[hash:base64:8].[ext]`;
+						},
+						publicPath: (url: string) => {
+							return url.replace(new RegExp(`(${themes.join('|')})(/|\\\\)`), '');
+						},
+						hash: 'sha512',
+						digest: 'hex'
 					}
 				},
 				{
-					include: themePath,
+					test: /\.css$/,
+					exclude: themesPath,
+					use: [MiniCssExtractPlugin.loader, 'css-loader?sourceMap']
+				},
+				{
+					test: /\.m\.css.js$/,
+					exclude: themesPath,
+					use: ['json-css-module-loader']
+				},
+				{
+					include: themesPath,
 					test: /.*\.css?$/,
-					use: ExtractTextPlugin.extract({
-						fallback: ['style-loader'],
-						use: [
-							'@dojo/webpack-contrib/css-module-decorator-loader',
-							{
-								loader: 'css-loader',
-								options: {
-									modules: true,
-									sourceMap: true,
-									importLoaders: 1,
-									localIdentName: '[name]__[local]__[hash:base64:5]'
-								}
-							},
-							{
-								loader: 'postcss-loader?sourceMap',
-								options: {
-									ident: 'postcss',
-									plugins: [postcssImport(postcssImportConfig), postcssPresetEnv(postcssPresetConfig)]
-								}
+					use: [
+						{
+							loader: MiniCssExtractPlugin.loader,
+							options: {}
+						},
+						'@dojo/webpack-contrib/css-module-decorator-loader',
+						'@dojo/webpack-contrib/css-module-class-map-loader/loader',
+						{
+							loader: 'css-loader',
+							options: {
+								importLoaders: 1,
+								modules: {
+									localIdentName: '[local]'
+								},
+								sourceMap: true
 							}
-						]
-					})
+						},
+						{
+							loader: 'postcss-loader?sourceMap',
+							options: {
+								ident: 'postcss',
+								plugins: [
+									postcssModules({
+										getJSON: (filename: string, json: any) => {
+											classesMap.set(filename, json);
+										},
+										generateScopedName: '[name]__[local]__[hash:base64:5]'
+									}),
+									postcssPresetEnv(postcssPresetConfig)
+								]
+							}
+						}
+					]
 				}
-			]
+			])
 		}
 	};
+
+	return config;
 }

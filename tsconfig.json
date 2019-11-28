@@ -3,7 +3,7 @@
 	"compilerOptions": {
 		"declaration": false,
 		"target": "es2015",
-		"types": [ "intern" ],
+		"types": [],
 		"lib": [
 			"dom",
 			"es5",
