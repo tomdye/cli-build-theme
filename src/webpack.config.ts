@@ -1,4 +1,4 @@
-import { Configuration } from 'webpack';
+import { Plugin, Configuration } from 'webpack';
 import * as MiniCssExtractPlugin from 'mini-css-extract-plugin';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -56,6 +56,41 @@ export default function webpackConfigFactory(args: any): Configuration {
 		}
 	};
 
+	const themeFileLoaders = themes.map((theme) => {
+		return {
+			test: /.*\.(gif|png|jpe?g|svg|eot|ttf|woff|woff2)$/i,
+			loader: 'file-loader',
+			issuer: {
+				test: (file: string) => file.indexOf(path.join('src', 'theme', theme)) !== -1
+			},
+			options: {
+				name: (file: string) => {
+					const externalRegExp = new RegExp(path.join(basePath, 'node_modules'));
+					if (externalRegExp.test(file)) {
+						const fileDir = path
+							.dirname(file.replace(path.join(basePath, 'node_modules'), ''))
+							.replace(/^(\/|\\)/, '');
+						return `${fileDir}/[hash:base64:8].[ext]`;
+					}
+					const fileDir = path
+						.dirname(file.replace(path.join(basePath, 'src', 'theme'), ''))
+						.replace(/^(\/|\\)/, '');
+					return `${fileDir}/[hash:base64:8].[ext]`;
+				},
+				publicPath: (url: string) => {
+					return url.replace(new RegExp(`(${themes.join('|')})(/|\\\\)`), '');
+				},
+				outputPath(url: string, resource: string) {
+					const themeTest = new RegExp(path.join(basePath, 'src', 'theme', theme));
+					if (!themeTest.test(resource)) {
+						return `${theme}/${url}`;
+					}
+					return url;
+				}
+			}
+		};
+	});
+
 	const config: Configuration = {
 		mode: 'production',
 		entry: themes.reduce(
@@ -102,7 +137,7 @@ export default function webpackConfigFactory(args: any): Configuration {
 				}
 			}),
 			new CleanWebpackPlugin()
-		],
+		] as Plugin[],
 		module: {
 			rules: removeEmpty([
 				{
@@ -127,24 +162,7 @@ export default function webpackConfigFactory(args: any): Configuration {
 						}
 					])
 				},
-				{
-					include: themesPath,
-					test: /.*\.(gif|png|jpe?g|svg|eot|ttf|woff|woff2)$/i,
-					loader: 'file-loader',
-					options: {
-						name: (file: string) => {
-							const fileDir = path
-								.dirname(file.replace(path.join(basePath, 'src', 'theme'), ''))
-								.replace(/^(\/|\\)/, '');
-							return `${fileDir}/[hash:base64:8].[ext]`;
-						},
-						publicPath: (url: string) => {
-							return url.replace(new RegExp(`(${themes.join('|')})(/|\\\\)`), '');
-						},
-						hash: 'sha512',
-						digest: 'hex'
-					}
-				},
+				...themeFileLoaders,
 				{
 					test: /\.css$/,
 					exclude: themesPath,
@@ -169,9 +187,8 @@ export default function webpackConfigFactory(args: any): Configuration {
 							loader: 'css-loader',
 							options: {
 								importLoaders: 1,
-								modules: {
-									localIdentName: '[local]'
-								},
+								modules: true,
+								localIdentName: '[local]',
 								sourceMap: true
 							}
 						},
