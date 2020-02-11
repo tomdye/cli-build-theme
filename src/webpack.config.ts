@@ -21,6 +21,9 @@ export default function webpackConfigFactory(args: any): Configuration {
 	const themesPath = args.themePath ? path.join(basePath, args.themePath) : path.join(basePath, 'src', 'theme');
 	const outputPath = path.join(basePath, 'output', 'theme');
 	const themes: string[] = args.themes;
+	const themeVariablesFiles = themes.map((theme) => {
+		return path.join(themesPath, theme, 'variables.css');
+	});
 
 	const postcssPresetConfig = {
 		browsers: ['last 2 versions', 'ie >= 10'],
@@ -30,15 +33,14 @@ export default function webpackConfigFactory(args: any): Configuration {
 		autoprefixer: {
 			grid: true
 		},
-		importFrom: themes.map((theme) => {
-			return path.join(themesPath, theme, 'variables.css');
-		})
+		importFrom: themeVariablesFiles
 	};
 
 	const emitAll = emitAllFactory({
 		legacy: false,
 		inlineSourceMaps: false,
-		basePath: themesPath
+		basePath: themesPath,
+		additionalAssets: themeVariablesFiles
 	});
 
 	const tsLoaderOptions = {
