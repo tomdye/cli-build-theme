@@ -37,7 +37,7 @@ export default function webpackConfigFactory(args: any): Configuration {
 	};
 
 	const emitAll = emitAllFactory({
-		legacy: false,
+		legacy: true,
 		inlineSourceMaps: false,
 		basePath: themesPath,
 		additionalAssets: themeVariablesFiles
